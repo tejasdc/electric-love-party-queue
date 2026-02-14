@@ -105,9 +105,11 @@ const VIBE_PRESETS = {
 };
 
 // Current vibe settings (in-memory, will reset on restart)
+// Note: Vibe filtering disabled by default because Spotify deprecated
+// the Audio Features, Related Artists, and Recommendations APIs in Nov 2024
 let currentVibe = {
-  preset: 'match',
-  settings: { ...VIBE_PRESETS.match },
+  preset: 'off',
+  settings: { ...VIBE_PRESETS.off },
 };
 
 // Fetch audio features for a track
