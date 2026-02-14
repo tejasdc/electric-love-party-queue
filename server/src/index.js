@@ -45,6 +45,18 @@ const VIBE_PRESETS = {
     description: 'No vibe filtering - all songs allowed',
     enabled: false,
   },
+  match: {
+    name: 'Match Now Playing',
+    description: 'Match the vibe of whatever is currently playing',
+    enabled: true,
+    dynamic: true, // Special flag indicating this uses now-playing as reference
+    tolerance: {
+      energy: 0.25,
+      valence: 0.25,
+      danceability: 0.25,
+      tempo: 20, // BPM tolerance
+    },
+  },
   chill: {
     name: 'Chill Vibes',
     description: 'Relaxed, mellow tracks for a laid-back atmosphere',
@@ -113,32 +125,93 @@ async function getAudioFeatures(trackId) {
   }
 }
 
-// Check if a track matches the current vibe
-function checkVibeMatch(audioFeatures) {
+// Get currently playing track ID
+async function getCurrentlyPlayingTrackId() {
+  try {
+    const response = await spotifyFetch('/me/player/currently-playing');
+    if (response.status === 204 || !response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    return data?.item?.id || null;
+  } catch (err) {
+    console.error('Error getting currently playing track:', err);
+    return null;
+  }
+}
+
+// Check if a track matches the current vibe (with dynamic support)
+async function checkVibeMatch(audioFeatures) {
   if (!currentVibe.settings.enabled) {
     return { matches: true, reason: null };
   }
 
-  const { energy, valence, tempo, danceability } = currentVibe.settings;
+  let thresholds;
+  let referenceFeatures = null;
+
+  // Handle dynamic "match" mode
+  if (currentVibe.settings.dynamic) {
+    const nowPlayingId = await getCurrentlyPlayingTrackId();
+    if (!nowPlayingId) {
+      // Nothing playing, allow the song
+      return { matches: true, reason: null, note: 'Nothing currently playing' };
+    }
+
+    referenceFeatures = await getAudioFeatures(nowPlayingId);
+    if (!referenceFeatures) {
+      // Can't get reference features, allow the song
+      return { matches: true, reason: null, note: 'Could not get reference track features' };
+    }
+
+    // Build thresholds dynamically from now-playing track
+    const tol = currentVibe.settings.tolerance;
+    thresholds = {
+      energy: {
+        min: Math.max(0, referenceFeatures.energy - tol.energy),
+        max: Math.min(1, referenceFeatures.energy + tol.energy),
+      },
+      valence: {
+        min: Math.max(0, referenceFeatures.valence - tol.valence),
+        max: Math.min(1, referenceFeatures.valence + tol.valence),
+      },
+      danceability: {
+        min: Math.max(0, referenceFeatures.danceability - tol.danceability),
+        max: Math.min(1, referenceFeatures.danceability + tol.danceability),
+      },
+      tempo: {
+        min: Math.max(0, referenceFeatures.tempo - tol.tempo),
+        max: referenceFeatures.tempo + tol.tempo,
+      },
+    };
+  } else {
+    // Use preset thresholds
+    thresholds = {
+      energy: currentVibe.settings.energy,
+      valence: currentVibe.settings.valence,
+      tempo: currentVibe.settings.tempo,
+      danceability: currentVibe.settings.danceability,
+    };
+  }
+
   const mismatches = [];
 
-  if (energy && (audioFeatures.energy < energy.min || audioFeatures.energy > energy.max)) {
-    const level = audioFeatures.energy < energy.min ? 'too mellow' : 'too intense';
+  if (thresholds.energy && (audioFeatures.energy < thresholds.energy.min || audioFeatures.energy > thresholds.energy.max)) {
+    const level = audioFeatures.energy < thresholds.energy.min ? 'too mellow' : 'too intense';
     mismatches.push(`Energy is ${level}`);
   }
 
-  if (valence && (audioFeatures.valence < valence.min || audioFeatures.valence > valence.max)) {
-    const level = audioFeatures.valence < valence.min ? 'too sad' : 'too upbeat';
+  if (thresholds.valence && (audioFeatures.valence < thresholds.valence.min || audioFeatures.valence > thresholds.valence.max)) {
+    const level = audioFeatures.valence < thresholds.valence.min ? 'too sad' : 'too upbeat';
     mismatches.push(`Mood is ${level}`);
   }
 
-  if (tempo && (audioFeatures.tempo < tempo.min || audioFeatures.tempo > tempo.max)) {
-    const level = audioFeatures.tempo < tempo.min ? 'too slow' : 'too fast';
+  if (thresholds.tempo && (audioFeatures.tempo < thresholds.tempo.min || audioFeatures.tempo > thresholds.tempo.max)) {
+    const level = audioFeatures.tempo < thresholds.tempo.min ? 'too slow' : 'too fast';
     mismatches.push(`Tempo is ${level}`);
   }
 
-  if (danceability && (audioFeatures.danceability < danceability.min || audioFeatures.danceability > danceability.max)) {
-    const level = audioFeatures.danceability < danceability.min ? 'not danceable enough' : 'too dancey';
+  if (thresholds.danceability && (audioFeatures.danceability < thresholds.danceability.min || audioFeatures.danceability > thresholds.danceability.max)) {
+    const level = audioFeatures.danceability < thresholds.danceability.min ? 'not danceable enough' : 'too dancey';
     mismatches.push(`Track is ${level}`);
   }
 
@@ -153,6 +226,13 @@ function checkVibeMatch(audioFeatures) {
         tempo: audioFeatures.tempo,
         danceability: audioFeatures.danceability,
       },
+      referenceFeatures: referenceFeatures ? {
+        energy: referenceFeatures.energy,
+        valence: referenceFeatures.valence,
+        tempo: referenceFeatures.tempo,
+        danceability: referenceFeatures.danceability,
+      } : null,
+      thresholds,
     };
   }
 
@@ -597,7 +677,7 @@ app.post('/api/queue', checkRateLimit, async (req, res) => {
       const audioFeatures = await getAudioFeatures(trackId);
 
       if (audioFeatures) {
-        const vibeCheck = checkVibeMatch(audioFeatures);
+        const vibeCheck = await checkVibeMatch(audioFeatures);
 
         if (!vibeCheck.matches) {
           return res.status(403).json({
@@ -606,6 +686,7 @@ app.post('/api/queue', checkRateLimit, async (req, res) => {
             reason: vibeCheck.reason,
             allReasons: vibeCheck.allReasons,
             audioFeatures: vibeCheck.audioFeatures,
+            referenceFeatures: vibeCheck.referenceFeatures,
             currentVibe: currentVibe.preset,
           });
         }
@@ -735,12 +816,13 @@ app.get('/api/vibe/check/:trackId', async (req, res) => {
       });
     }
 
-    const vibeCheck = checkVibeMatch(audioFeatures);
+    const vibeCheck = await checkVibeMatch(audioFeatures);
 
     res.json({
       matches: vibeCheck.matches,
       vibeEnabled: true,
       currentVibe: currentVibe.settings.name,
+      isDynamic: currentVibe.settings.dynamic || false,
       reason: vibeCheck.reason,
       allReasons: vibeCheck.allReasons,
       audioFeatures: {
@@ -749,7 +831,8 @@ app.get('/api/vibe/check/:trackId', async (req, res) => {
         tempo: Math.round(audioFeatures.tempo),
         danceability: audioFeatures.danceability,
       },
-      thresholds: {
+      referenceFeatures: vibeCheck.referenceFeatures,
+      thresholds: vibeCheck.thresholds || {
         energy: currentVibe.settings.energy,
         valence: currentVibe.settings.valence,
         tempo: currentVibe.settings.tempo,
