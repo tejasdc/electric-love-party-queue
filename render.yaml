@@ -1,0 +1,52 @@
+# Render Blueprint for Spotify Party Queue App
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Node.js Backend API
+  - type: web
+    name: electric-love-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/auth/status
+    envVars:
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: SPOTIFY_REDIRECT_URI
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false
+
+  # Vite React Frontend (Static Site)
+  - type: web
+    name: electric-love
+    runtime: static
+    region: oregon
+    plan: free
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+    routes:
+      # Redirect API calls to backend service
+      - type: rewrite
+        source: /api/*
+        destination: https://electric-love-api.onrender.com/api/*
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: electric-love-api
+          property: host

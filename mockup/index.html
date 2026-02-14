@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ELECTRIC LOVE — Party Queue</title>
+
+  <!-- Fonts: Nabla for psychedelic title, Syne for UI, DM Mono for body -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nabla&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --void: #05010d;
+      --deep: #0a0118;
+      --surface: rgba(15, 5, 30, 0.6);
+
+      /* Electric palette */
+      --electric-pink: #ff2d92;
+      --electric-purple: #b829dd;
+      --electric-blue: #29dddd;
+      --electric-yellow: #ddff29;
+      --electric-orange: #ff6b2d;
+
+      /* UI colors */
+      --text-bright: #ffffff;
+      --text-dim: rgba(255, 255, 255, 0.5);
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-edge: rgba(255, 255, 255, 0.08);
+
+      /* Shadows & Glows */
+      --glow-pink: 0 0 60px rgba(255, 45, 146, 0.4);
+      --glow-blue: 0 0 60px rgba(41, 221, 221, 0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--void);
+      color: var(--text-bright);
+      overflow-x: hidden;
+    }
+
+    /* ============ ANIMATED BACKGROUND ============ */
+    .bg-container {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.6;
+      mix-blend-mode: screen;
+    }
+
+    .blob-1 {
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, var(--electric-pink) 0%, transparent 70%);
+      top: -100px;
+      left: -100px;
+      animation: blob1 15s ease-in-out infinite;
+    }
+
+    .blob-2 {
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, var(--electric-purple) 0%, transparent 70%);
+      bottom: -50px;
+      right: -100px;
+      animation: blob2 18s ease-in-out infinite;
+    }
+
+    .blob-3 {
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, var(--electric-blue) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: blob3 20s ease-in-out infinite;
+    }
+
+    .blob-4 {
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, var(--electric-yellow) 0%, transparent 70%);
+      top: 30%;
+      right: -50px;
+      animation: blob4 12s ease-in-out infinite;
+      opacity: 0.4;
+    }
+
+    @keyframes blob1 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(50px, 100px) scale(1.1); }
+      50% { transform: translate(100px, 50px) scale(0.9); }
+      75% { transform: translate(30px, 120px) scale(1.05); }
+    }
+
+    @keyframes blob2 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(-80px, -60px) scale(1.15); }
+      66% { transform: translate(-40px, -100px) scale(0.95); }
+    }
+
+    @keyframes blob3 {
+      0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+      50% { transform: translate(-50%, -50%) scale(1.2) rotate(180deg); }
+    }
+
+    @keyframes blob4 {
+      0%, 100% { transform: translate(0, 0); opacity: 0.4; }
+      50% { transform: translate(-60px, 80px); opacity: 0.6; }
+    }
+
+    .particles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--electric-blue);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--electric-blue);
+      animation: float-up linear infinite;
+      opacity: 0;
+    }
+
+    @keyframes float-up {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100px) scale(1); opacity: 0; }
+    }
+
+    .noise {
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.04;
+      pointer-events: none;
+      mix-blend-mode: overlay;
+    }
+
+    .scanlines {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.1) 2px,
+        rgba(0, 0, 0, 0.1) 4px
+      );
+      pointer-events: none;
+      opacity: 0.3;
+    }
+
+    /* ============ APP CONTAINER ============ */
+    .app {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ============ COMPACT HEADER ============ */
+    .header {
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-family: 'Nabla', system-ui;
+      font-size: 1.4rem;
+      letter-spacing: 0.05em;
+      display: inline-block;
+      background: linear-gradient(
+        135deg,
+        var(--electric-pink) 0%,
+        var(--electric-purple) 25%,
+        var(--electric-blue) 50%,
+        var(--electric-yellow) 75%,
+        var(--electric-pink) 100%
+      );
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradient-shift 5s ease infinite;
+      text-shadow: none;
+      filter: drop-shadow(0 0 20px rgba(255, 45, 146, 0.4));
+    }
+
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* ============ SCROLLABLE CONTENT ============ */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      padding-bottom: 100px;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: var(--electric-purple);
+      border-radius: 3px;
+    }
+
+    /* ============ NOW PLAYING ============ */
+    .now-playing {
+      padding: 1.5rem 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .album-portal {
+      position: relative;
+      margin-bottom: 1.5rem;
+      width: 260px;
+      height: 260px;
+    }
+
+    .portal-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid;
+      animation: ring-pulse 3s ease-in-out infinite;
+    }
+
+    .portal-ring:nth-child(1) {
+      inset: -25px;
+      border-color: rgba(255, 45, 146, 0.3);
+      animation-delay: 0s;
+    }
+
+    .portal-ring:nth-child(2) {
+      inset: -45px;
+      border-color: rgba(184, 41, 221, 0.2);
+      animation-delay: 0.5s;
+    }
+
+    .portal-ring:nth-child(3) {
+      inset: -65px;
+      border-color: rgba(41, 221, 221, 0.15);
+      animation-delay: 1s;
+    }
+
+    @keyframes ring-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.5; }
+    }
+
+    .album-glow {
+      position: absolute;
+      inset: -15px;
+      border-radius: 20px;
+      background: conic-gradient(
+        from 0deg,
+        var(--electric-pink),
+        var(--electric-purple),
+        var(--electric-blue),
+        var(--electric-yellow),
+        var(--electric-orange),
+        var(--electric-pink)
+      );
+      filter: blur(35px);
+      opacity: 0.7;
+      animation: glow-rotate 8s linear infinite;
+    }
+
+    @keyframes glow-rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .album-art {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow:
+        0 25px 50px rgba(0, 0, 0, 0.5),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      animation: album-breathe 4s ease-in-out infinite;
+    }
+
+    @keyframes album-breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    .album-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .album-art::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 45, 146, 0.1) 0%,
+        transparent 50%,
+        rgba(41, 221, 221, 0.1) 100%
+      );
+      mix-blend-mode: overlay;
+    }
+
+    .track-info {
+      text-align: center;
+      max-width: 280px;
+    }
+
+    .track-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1.4rem;
+      line-height: 1.2;
+      margin-bottom: 0.4rem;
+      text-shadow: 0 0 40px rgba(255, 45, 146, 0.5);
+    }
+
+    .track-artist {
+      font-size: 0.95rem;
+      color: var(--electric-blue);
+      margin-bottom: 0.2rem;
+      text-shadow: 0 0 20px rgba(41, 221, 221, 0.5);
+    }
+
+    .track-album {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-weight: 300;
+    }
+
+    .progress {
+      width: 100%;
+      max-width: 280px;
+      margin-top: 1.25rem;
+    }
+
+    .progress-bar {
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, var(--electric-pink), var(--electric-blue));
+      border-radius: 3px;
+      position: relative;
+      transition: width 1s linear;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 10px;
+      height: 10px;
+      background: var(--text-bright);
+      border-radius: 50%;
+      box-shadow: 0 0 15px var(--electric-pink);
+    }
+
+    .progress-time {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.4rem;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+    }
+
+    /* ============ QUEUE SECTION (INLINE) ============ */
+    .queue-section {
+      padding: 1rem 1.5rem 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-bright);
+    }
+
+    .queue-badge {
+      font-size: 0.6rem;
+      font-weight: 500;
+      color: var(--electric-yellow);
+      background: rgba(221, 255, 41, 0.1);
+      padding: 0.25rem 0.6rem;
+      border-radius: 100px;
+      border: 1px solid rgba(221, 255, 41, 0.3);
+    }
+
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.7rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-edge);
+      border-radius: 14px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: item-appear 0.5s ease backwards;
+    }
+
+    .queue-item:nth-child(1) { animation-delay: 0.05s; }
+    .queue-item:nth-child(2) { animation-delay: 0.1s; }
+    .queue-item:nth-child(3) { animation-delay: 0.15s; }
+    .queue-item:nth-child(4) { animation-delay: 0.2s; }
+    .queue-item:nth-child(5) { animation-delay: 0.25s; }
+    .queue-item:nth-child(6) { animation-delay: 0.3s; }
+
+    @keyframes item-appear {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+    }
+
+    .queue-item:hover {
+      transform: translateX(6px);
+      border-color: rgba(255, 45, 146, 0.3);
+      background: rgba(255, 45, 146, 0.05);
+    }
+
+    .queue-item.next-up {
+      border-color: var(--electric-pink);
+      background: rgba(255, 45, 146, 0.08);
+      box-shadow: var(--glow-pink), inset 0 0 30px rgba(255, 45, 146, 0.05);
+    }
+
+    .queue-num {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      width: 1.25rem;
+      text-align: center;
+    }
+
+    .queue-item.next-up .queue-num {
+      color: var(--electric-pink);
+      text-shadow: 0 0 10px var(--electric-pink);
+    }
+
+    .queue-thumb {
+      width: 46px;
+      height: 46px;
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .queue-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .queue-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .queue-track {
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.15rem;
+    }
+
+    .queue-artist {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .queue-duration {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      font-weight: 300;
+    }
+
+    /* ============ HEADER SEARCH BUTTON ============ */
+    .search-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid var(--glass-edge);
+      background: var(--glass);
+      color: var(--text-bright);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .search-btn:hover {
+      border-color: var(--electric-pink);
+      background: rgba(255, 45, 146, 0.1);
+      box-shadow: 0 0 20px rgba(255, 45, 146, 0.3);
+    }
+
+    .search-btn:active {
+      transform: scale(0.95);
+    }
+
+    .search-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Spacer to balance the header */
+    .header-spacer {
+      width: 42px;
+    }
+
+    /* ============ SEARCH OVERLAY ============ */
+    .search-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 1, 13, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .search-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .search-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--glass-edge);
+    }
+
+    .search-close {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--glass-edge);
+      background: var(--glass);
+      color: var(--text-bright);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .search-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--electric-pink);
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-edge);
+      border-radius: 14px;
+      color: var(--text-bright);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .search-input:focus {
+      border-color: var(--electric-purple);
+      box-shadow: 0 0 20px rgba(184, 41, 221, 0.2);
+    }
+
+    .search-results {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .search-item {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.75rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-edge);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .search-item:hover {
+      transform: scale(1.02);
+      border-color: var(--electric-blue);
+      background: rgba(41, 221, 221, 0.05);
+      box-shadow: 0 0 25px rgba(41, 221, 221, 0.15);
+    }
+
+    .search-item:active {
+      transform: scale(0.98);
+    }
+
+    .search-thumb {
+      width: 54px;
+      height: 54px;
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .search-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .search-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .search-track {
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.25rem;
+    }
+
+    .search-meta {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .add-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--electric-blue);
+      background: transparent;
+      color: var(--electric-blue);
+      font-size: 1.5rem;
+      font-weight: 300;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .add-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--electric-blue);
+      transform: scale(0);
+      border-radius: 50%;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .add-btn span {
+      position: relative;
+      z-index: 1;
+      transition: all 0.3s ease;
+    }
+
+    .add-btn:hover {
+      box-shadow: var(--glow-blue);
+    }
+
+    .add-btn:hover::before {
+      transform: scale(1);
+    }
+
+    .add-btn:hover span {
+      color: var(--void);
+      transform: rotate(90deg);
+    }
+
+    .add-btn.added {
+      border-color: var(--electric-yellow);
+      background: var(--electric-yellow);
+      animation: pop 0.4s ease;
+    }
+
+    .add-btn.added span {
+      color: var(--void);
+    }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    /* ============ TOAST ============ */
+    .toast {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: linear-gradient(135deg, var(--electric-purple), var(--electric-pink));
+      padding: 0.85rem 1.75rem;
+      border-radius: 100px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 0.8rem;
+      box-shadow: 0 15px 40px rgba(184, 41, 221, 0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ============ RATE LIMIT TOAST (ERROR) ============ */
+    .toast.error {
+      background: linear-gradient(135deg, #ff4444, #ff2d92);
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="bg-container">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="blob blob-4"></div>
+    <div class="particles" id="particles"></div>
+    <div class="noise"></div>
+    <div class="scanlines"></div>
+  </div>
+
+  <!-- App -->
+  <div class="app">
+    <header class="header">
+      <div class="header-spacer"></div>
+      <h1 class="logo">Electric Love</h1>
+      <button class="search-btn" id="searchBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main class="content">
+      <!-- NOW PLAYING -->
+      <section class="now-playing">
+        <div class="album-portal">
+          <div class="portal-ring"></div>
+          <div class="portal-ring"></div>
+          <div class="portal-ring"></div>
+          <div class="album-glow"></div>
+          <div class="album-art">
+            <img src="https://i.scdn.co/image/ab67616d0000b273e8b066f70c206551210d902b" alt="Album art">
+          </div>
+        </div>
+
+        <div class="track-info">
+          <h2 class="track-title">Scarlet Begonias</h2>
+          <p class="track-artist">Grateful Dead</p>
+          <p class="track-album">From the Mars Hotel</p>
+        </div>
+
+        <div class="progress">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+          </div>
+          <div class="progress-time">
+            <span id="current-time">2:34</span>
+            <span>7:23</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUEUE (inline, same scroll) -->
+      <section class="queue-section">
+        <div class="section-header">
+          <h3 class="section-title">Up Next</h3>
+          <span class="queue-badge">8 songs</span>
+        </div>
+
+        <div class="queue-list">
+          <div class="queue-item next-up">
+            <span class="queue-num">1</span>
+            <div class="queue-thumb">
+              <img src="https://i.scdn.co/image/ab67616d0000b27351f311c2fb06ad2789e3ff91" alt="">
+            </div>
+            <div class="queue-info">
+              <div class="queue-track">Fire on the Mountain</div>
+              <div class="queue-artist">Grateful Dead</div>
+            </div>
+            <span class="queue-duration">6:52</span>
+          </div>
+
+          <div class="queue-item">
+            <span class="queue-num">2</span>
+            <div class="queue-thumb">
+              <img src="https://i.scdn.co/image/ab67616d0000b273dc30583ba717007b00cceb25" alt="">
+            </div>
+            <div class="queue-info">
+              <div class="queue-track">Casey Jones</div>
+              <div class="queue-artist">Grateful Dead</div>
+            </div>
+            <span class="queue-duration">4:26</span>
+          </div>
+
+          <div class="queue-item">
+            <span class="queue-num">3</span>
+            <div class="queue-thumb">
+              <img src="https://i.scdn.co/image/ab67616d0000b2734e0b23405fc66e3e8769901a" alt="">
+            </div>
+            <div class="queue-info">
+              <div class="queue-track">Blinding Lights</div>
+              <div class="queue-artist">The Weeknd</div>
+            </div>
+            <span class="queue-duration">3:20</span>
+          </div>
+
+          <div class="queue-item">
+            <span class="queue-num">4</span>
+            <div class="queue-thumb">
+              <img src="https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96" alt="">
+            </div>
+            <div class="queue-info">
+              <div class="queue-track">Purple Rain</div>
+              <div class="queue-artist">Prince</div>
+            </div>
+            <span class="queue-duration">8:41</span>
+          </div>
+
+          <div class="queue-item">
+            <span class="queue-num">5</span>
+            <div class="queue-thumb">
+              <img src="https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647" alt="">
+            </div>
+            <div class="queue-info">
+              <div class="queue-track">Dreams</div>
+              <div class="queue-artist">Fleetwood Mac</div>
+            </div>
+            <span class="queue-duration">4:14</span>
+          </div>
+
+          <div class="queue-item">
+            <span class="queue-num">6</span>
+            <div class="queue-thumb">
+              <img src="https://i.scdn.co/image/ab67616d0000b2739e1cfc756886ac782e363d79" alt="">
+            </div>
+            <div class="queue-info">
+              <div class="queue-track">Let It Happen</div>
+              <div class="queue-artist">Tame Impala</div>
+            </div>
+            <span class="queue-duration">7:44</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+
+    <!-- Search Overlay -->
+    <div class="search-overlay" id="searchOverlay">
+      <div class="search-header">
+        <button class="search-close" id="searchClose">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+        <div class="search-input-wrap">
+          <input type="text" class="search-input" id="searchInput" placeholder="Find a song...">
+        </div>
+      </div>
+
+      <div class="search-results" id="searchResults">
+        <div class="search-item">
+          <div class="search-thumb">
+            <img src="https://i.scdn.co/image/ab67616d0000b273e8b066f70c206551210d902b" alt="">
+          </div>
+          <div class="search-info">
+            <div class="search-track">Touch of Grey</div>
+            <div class="search-meta">Grateful Dead · In the Dark</div>
+          </div>
+          <button class="add-btn"><span>+</span></button>
+        </div>
+
+        <div class="search-item">
+          <div class="search-thumb">
+            <img src="https://i.scdn.co/image/ab67616d0000b273dc30583ba717007b00cceb25" alt="">
+          </div>
+          <div class="search-info">
+            <div class="search-track">Truckin'</div>
+            <div class="search-meta">Grateful Dead · American Beauty</div>
+          </div>
+          <button class="add-btn"><span>+</span></button>
+        </div>
+
+        <div class="search-item">
+          <div class="search-thumb">
+            <img src="https://i.scdn.co/image/ab67616d0000b27351f311c2fb06ad2789e3ff91" alt="">
+          </div>
+          <div class="search-info">
+            <div class="search-track">Friend of the Devil</div>
+            <div class="search-meta">Grateful Dead · American Beauty</div>
+          </div>
+          <button class="add-btn"><span>+</span></button>
+        </div>
+
+        <div class="search-item">
+          <div class="search-thumb">
+            <img src="https://i.scdn.co/image/ab67616d0000b273e8b066f70c206551210d902b" alt="">
+          </div>
+          <div class="search-info">
+            <div class="search-track">Ripple</div>
+            <div class="search-meta">Grateful Dead · American Beauty</div>
+          </div>
+          <button class="add-btn"><span>+</span></button>
+        </div>
+
+        <div class="search-item">
+          <div class="search-thumb">
+            <img src="https://i.scdn.co/image/ab67616d0000b273dc30583ba717007b00cceb25" alt="">
+          </div>
+          <div class="search-info">
+            <div class="search-track">Sugar Magnolia</div>
+            <div class="search-meta">Grateful Dead · American Beauty</div>
+          </div>
+          <button class="add-btn"><span>+</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">Added to queue!</div>
+  </div>
+
+  <script>
+    // Generate floating particles
+    const particlesContainer = document.getElementById('particles');
+    const particleCount = 20;
+    const colors = ['#ff2d92', '#b829dd', '#29dddd', '#ddff29'];
+
+    for (let i = 0; i < particleCount; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'particle';
+      particle.style.left = Math.random() * 100 + '%';
+      particle.style.animationDuration = (8 + Math.random() * 12) + 's';
+      particle.style.animationDelay = Math.random() * 10 + 's';
+      particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+      particle.style.boxShadow = `0 0 10px ${particle.style.background}`;
+      particle.style.width = (2 + Math.random() * 4) + 'px';
+      particle.style.height = particle.style.width;
+      particlesContainer.appendChild(particle);
+    }
+
+    // Search overlay
+    const searchBtn = document.getElementById('searchBtn');
+    const searchOverlay = document.getElementById('searchOverlay');
+    const searchClose = document.getElementById('searchClose');
+    const searchInput = document.getElementById('searchInput');
+
+    searchBtn.addEventListener('click', () => {
+      searchOverlay.classList.add('open');
+      setTimeout(() => searchInput.focus(), 300);
+    });
+
+    searchClose.addEventListener('click', () => {
+      searchOverlay.classList.remove('open');
+    });
+
+    // Add to queue buttons
+    const addBtns = document.querySelectorAll('.add-btn');
+    const toast = document.getElementById('toast');
+
+    addBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (btn.classList.contains('added')) return;
+
+        btn.classList.add('added');
+        btn.querySelector('span').textContent = '✓';
+
+        toast.textContent = '✨ Added to queue!';
+        toast.classList.remove('error');
+        toast.classList.add('show');
+
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2500);
+
+        setTimeout(() => {
+          btn.classList.remove('added');
+          btn.querySelector('span').textContent = '+';
+        }, 3000);
+      });
+    });
+
+    // Animate progress bar
+    let progress = 35;
+    const progressBar = document.getElementById('progress');
+    const currentTime = document.getElementById('current-time');
+
+    setInterval(() => {
+      progress += 0.2;
+      if (progress > 100) progress = 0;
+      progressBar.style.width = progress + '%';
+
+      const totalSeconds = Math.floor((progress / 100) * 443);
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      currentTime.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }, 1000);
+  </script>
+</body>
+</html>
