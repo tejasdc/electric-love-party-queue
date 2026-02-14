@@ -153,6 +153,11 @@ function SearchOverlay({ isOpen, onClose, onAddToQueue }) {
           <input
             ref={inputRef}
             type="text"
+            inputMode="search"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
             className="search-input"
             placeholder="Find a song..."
             value={query}
