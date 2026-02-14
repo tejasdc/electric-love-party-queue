@@ -401,20 +401,16 @@ app.get('/api/queue', async (req, res) => {
 // GET /api/search - Search Spotify catalog
 app.get('/api/search', async (req, res) => {
   const { q, type = 'track' } = req.query;
-  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
 
   if (!q) {
     return res.status(400).json({ error: 'Missing search query parameter "q"' });
   }
 
   try {
-    const searchParams = new URLSearchParams({
-      q,
-      type,
-      limit: String(limit),
-    });
+    // Hardcode limit to 20 to avoid any parsing issues
+    const searchUrl = `/search?q=${encodeURIComponent(q)}&type=${type}&limit=20`;
 
-    const response = await spotifyFetch(`/search?${searchParams.toString()}`);
+    const response = await spotifyFetch(searchUrl);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
