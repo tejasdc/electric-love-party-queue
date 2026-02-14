@@ -817,6 +817,26 @@ app.get('/api/audio-features/:trackId', async (req, res) => {
   }
 });
 
+// GET /api/artist/:artistId - Debug endpoint to test artist/genre API
+app.get('/api/artist/:artistId', async (req, res) => {
+  const { artistId } = req.params;
+  try {
+    const response = await spotifyFetch(`/artists/${artistId}`);
+    const status = response.status;
+    const data = await response.json().catch(() => null);
+    res.json({
+      status,
+      artistId,
+      name: data?.name,
+      genres: data?.genres || [],
+      genreCount: data?.genres?.length || 0,
+      popularity: data?.popularity
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, artistId });
+  }
+});
+
 // GET /api/vibe/check/:trackId - Check if a track matches the current vibe (for preview)
 app.get('/api/vibe/check/:trackId', async (req, res) => {
   const { trackId } = req.params;
