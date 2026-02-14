@@ -407,8 +407,8 @@ app.get('/api/search', async (req, res) => {
   }
 
   try {
-    // Hardcode limit to 20 to avoid any parsing issues
-    const searchUrl = `/search?q=${encodeURIComponent(q)}&type=${type}&limit=20`;
+    // Spotify API limit is now 0-10 (changed from 0-50)
+    const searchUrl = `/search?q=${encodeURIComponent(q)}&type=${type}&limit=10`;
 
     const response = await spotifyFetch(searchUrl);
 
