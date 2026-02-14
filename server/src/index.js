@@ -34,6 +34,131 @@ const RATE_LIMIT_MAX_REQUESTS = 10;
 // Map<state, { codeVerifier: string, createdAt: number }>
 const oauthStateStore = new Map();
 
+// =============================================================================
+// VIBE FILTERING SYSTEM
+// =============================================================================
+
+// Vibe presets with audio feature thresholds
+const VIBE_PRESETS = {
+  off: {
+    name: 'Off',
+    description: 'No vibe filtering - all songs allowed',
+    enabled: false,
+  },
+  chill: {
+    name: 'Chill Vibes',
+    description: 'Relaxed, mellow tracks for a laid-back atmosphere',
+    enabled: true,
+    energy: { min: 0.1, max: 0.6 },
+    valence: { min: 0.2, max: 0.8 },
+    tempo: { min: 60, max: 120 },
+    danceability: { min: 0.3, max: 0.8 },
+  },
+  party: {
+    name: 'Party Mode',
+    description: 'High energy, danceable tracks to keep the party going',
+    enabled: true,
+    energy: { min: 0.6, max: 1.0 },
+    valence: { min: 0.4, max: 1.0 },
+    tempo: { min: 100, max: 150 },
+    danceability: { min: 0.6, max: 1.0 },
+  },
+  romantic: {
+    name: 'Romantic',
+    description: 'Smooth, emotional tracks perfect for Valentine\'s Day',
+    enabled: true,
+    energy: { min: 0.1, max: 0.6 },
+    valence: { min: 0.2, max: 0.7 },
+    tempo: { min: 60, max: 120 },
+    danceability: { min: 0.2, max: 0.7 },
+  },
+  hype: {
+    name: 'Hype',
+    description: 'Maximum energy bangers only',
+    enabled: true,
+    energy: { min: 0.75, max: 1.0 },
+    valence: { min: 0.5, max: 1.0 },
+    tempo: { min: 110, max: 180 },
+    danceability: { min: 0.65, max: 1.0 },
+  },
+  custom: {
+    name: 'Custom',
+    description: 'Your own vibe settings',
+    enabled: true,
+    energy: { min: 0.0, max: 1.0 },
+    valence: { min: 0.0, max: 1.0 },
+    tempo: { min: 0, max: 300 },
+    danceability: { min: 0.0, max: 1.0 },
+  },
+};
+
+// Current vibe settings (in-memory, will reset on restart)
+let currentVibe = {
+  preset: 'off',
+  settings: { ...VIBE_PRESETS.off },
+};
+
+// Fetch audio features for a track
+async function getAudioFeatures(trackId) {
+  try {
+    const response = await spotifyFetch(`/audio-features/${trackId}`);
+    if (!response.ok) {
+      console.error('Failed to fetch audio features:', response.status);
+      return null;
+    }
+    return await response.json();
+  } catch (err) {
+    console.error('Error fetching audio features:', err);
+    return null;
+  }
+}
+
+// Check if a track matches the current vibe
+function checkVibeMatch(audioFeatures) {
+  if (!currentVibe.settings.enabled) {
+    return { matches: true, reason: null };
+  }
+
+  const { energy, valence, tempo, danceability } = currentVibe.settings;
+  const mismatches = [];
+
+  if (energy && (audioFeatures.energy < energy.min || audioFeatures.energy > energy.max)) {
+    const level = audioFeatures.energy < energy.min ? 'too mellow' : 'too intense';
+    mismatches.push(`Energy is ${level}`);
+  }
+
+  if (valence && (audioFeatures.valence < valence.min || audioFeatures.valence > valence.max)) {
+    const level = audioFeatures.valence < valence.min ? 'too sad' : 'too upbeat';
+    mismatches.push(`Mood is ${level}`);
+  }
+
+  if (tempo && (audioFeatures.tempo < tempo.min || audioFeatures.tempo > tempo.max)) {
+    const level = audioFeatures.tempo < tempo.min ? 'too slow' : 'too fast';
+    mismatches.push(`Tempo is ${level}`);
+  }
+
+  if (danceability && (audioFeatures.danceability < danceability.min || audioFeatures.danceability > danceability.max)) {
+    const level = audioFeatures.danceability < danceability.min ? 'not danceable enough' : 'too dancey';
+    mismatches.push(`Track is ${level}`);
+  }
+
+  if (mismatches.length > 0) {
+    return {
+      matches: false,
+      reason: mismatches[0], // Return first mismatch as primary reason
+      allReasons: mismatches,
+      audioFeatures: {
+        energy: audioFeatures.energy,
+        valence: audioFeatures.valence,
+        tempo: audioFeatures.tempo,
+        danceability: audioFeatures.danceability,
+      },
+    };
+  }
+
+  return { matches: true, reason: null };
+}
+
 // Middleware
 app.use(express.json());
 // CORS configuration - accepts comma-separated origins
@@ -450,7 +575,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// POST /api/queue - Add track to queue
+// POST /api/queue - Add track to queue (with vibe check)
 app.post('/api/queue', checkRateLimit, async (req, res) => {
   const { uri } = req.body;
 
@@ -463,7 +588,31 @@ app.post('/api/queue', checkRateLimit, async (req, res) => {
     return res.status(400).json({ error: 'Invalid track URI format. Must be spotify:track:...' });
   }
 
+  // Extract track ID from URI
+  const trackId = uri.replace('spotify:track:', '');
+
   try {
+    // Check vibe if enabled
+    if (currentVibe.settings.enabled) {
+      const audioFeatures = await getAudioFeatures(trackId);
+
+      if (audioFeatures) {
+        const vibeCheck = checkVibeMatch(audioFeatures);
+
+        if (!vibeCheck.matches) {
+          return res.status(403).json({
+            error: 'vibe_mismatch',
+            message: `This song doesn't match the ${currentVibe.settings.name} vibe`,
+            reason: vibeCheck.reason,
+            allReasons: vibeCheck.allReasons,
+            audioFeatures: vibeCheck.audioFeatures,
+            currentVibe: currentVibe.preset,
+          });
+        }
+      }
+      // If we can't get audio features, allow the song (fail open)
+    }
+
     const response = await spotifyFetch(`/me/player/queue?uri=${encodeURIComponent(uri)}`, {
       method: 'POST',
     });
@@ -510,6 +659,106 @@ app.post('/api/queue', checkRateLimit, async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =============================================================================
+// VIBE API ROUTES (Host only)
+// =============================================================================
+
+// GET /api/vibe - Get current vibe settings
+app.get('/api/vibe', (req, res) => {
+  res.json({
+    currentPreset: currentVibe.preset,
+    settings: currentVibe.settings,
+    availablePresets: Object.entries(VIBE_PRESETS).map(([key, value]) => ({
+      id: key,
+      name: value.name,
+      description: value.description,
+    })),
+  });
+});
+
+// POST /api/vibe - Set vibe preset
+app.post('/api/vibe', (req, res) => {
+  const { preset, customSettings } = req.body;
+
+  if (!preset || !VIBE_PRESETS[preset]) {
+    return res.status(400).json({
+      error: 'Invalid preset',
+      validPresets: Object.keys(VIBE_PRESETS)
+    });
+  }
+
+  if (preset === 'custom' && customSettings) {
+    currentVibe = {
+      preset: 'custom',
+      settings: {
+        ...VIBE_PRESETS.custom,
+        ...customSettings,
+        enabled: true,
+      },
+    };
+  } else {
+    currentVibe = {
+      preset,
+      settings: { ...VIBE_PRESETS[preset] },
+    };
+  }
+
+  console.log(`Vibe set to: ${currentVibe.settings.name}`);
+
+  res.json({
+    success: true,
+    message: `Vibe set to ${currentVibe.settings.name}`,
+    currentPreset: currentVibe.preset,
+    settings: currentVibe.settings,
+  });
+});
+
+// GET /api/vibe/check/:trackId - Check if a track matches the current vibe (for preview)
+app.get('/api/vibe/check/:trackId', async (req, res) => {
+  const { trackId } = req.params;
+
+  if (!currentVibe.settings.enabled) {
+    return res.json({ matches: true, vibeEnabled: false });
+  }
+
+  try {
+    const audioFeatures = await getAudioFeatures(trackId);
+
+    if (!audioFeatures) {
+      return res.json({
+        matches: true,
+        vibeEnabled: true,
+        note: 'Could not fetch audio features, allowing song'
+      });
+    }
+
+    const vibeCheck = checkVibeMatch(audioFeatures);
+
+    res.json({
+      matches: vibeCheck.matches,
+      vibeEnabled: true,
+      currentVibe: currentVibe.settings.name,
+      reason: vibeCheck.reason,
+      allReasons: vibeCheck.allReasons,
+      audioFeatures: {
+        energy: audioFeatures.energy,
+        valence: audioFeatures.valence,
+        tempo: Math.round(audioFeatures.tempo),
+        danceability: audioFeatures.danceability,
+      },
+      thresholds: {
+        energy: currentVibe.settings.energy,
+        valence: currentVibe.settings.valence,
+        tempo: currentVibe.settings.tempo,
+        danceability: currentVibe.settings.danceability,
+      },
+    });
+  } catch (err) {
+    console.error('Error checking vibe:', err);
+    res.status(500).json({ error: 'Failed to check vibe' });
   }
 });
 

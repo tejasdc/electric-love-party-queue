@@ -8,7 +8,7 @@ function formatDuration(ms) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function SearchItem({ track, onAdd, addingUri, wasAdded }) {
+function SearchItem({ track, onAdd, addingUri, wasAdded, wasRejected, rejectedReason }) {
   const defaultImage = 'https://i.scdn.co/image/ab67616d0000b273e8b066f70c206551210d902b';
 
   const albumImage = track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || defaultImage;
@@ -20,36 +20,44 @@ function SearchItem({ track, onAdd, addingUri, wasAdded }) {
 
   const handleAdd = (e) => {
     e.stopPropagation();
-    if (isLoading || wasAdded) return;
+    if (isLoading || wasAdded || wasRejected) return;
 
     onAdd(track.uri);
   };
 
   return (
-    <div className="search-item">
+    <div className={`search-item ${wasRejected ? 'rejected' : ''}`}>
       <div className="search-thumb">
         <img src={albumImage} alt="" />
       </div>
       <div className="search-info">
         <div className="search-track">{trackName}</div>
-        <div className="search-meta">{artistName} {albumName && `\u00B7 ${albumName}`}</div>
+        <div className="search-meta">
+          {wasRejected ? (
+            <span className="rejected-reason">{rejectedReason || "Doesn't match the vibe"}</span>
+          ) : (
+            <>{artistName} {albumName && `\u00B7 ${albumName}`}</>
+          )}
+        </div>
       </div>
       <button
-        className={`add-btn ${isLoading ? 'loading' : ''} ${wasAdded ? 'added' : ''}`}
+        className={`add-btn ${isLoading ? 'loading' : ''} ${wasAdded ? 'added' : ''} ${wasRejected ? 'rejected' : ''}`}
         onClick={handleAdd}
+        disabled={wasRejected}
       >
-        <span>{wasAdded ? '\u2713' : isLoading ? '\u25CB' : '+'}</span>
+        <span>{wasAdded ? '\u2713' : wasRejected ? '\u2717' : isLoading ? '\u25CB' : '+'}</span>
       </button>
     </div>
   );
 }
 
-function SearchOverlay({ isOpen, onClose, onAddToQueue }) {
+function SearchOverlay({ isOpen, onClose, onAddToQueue, onShowToast }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [addingUri, setAddingUri] = useState(null);
   const [addedUris, setAddedUris] = useState(new Set());
+  const [rejectedUris, setRejectedUris] = useState(new Map()); // uri -> reason
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
 
@@ -66,6 +74,7 @@ function SearchOverlay({ isOpen, onClose, onAddToQueue }) {
       setQuery('');
       setResults([]);
       setAddedUris(new Set());
+      setRejectedUris(new Map());
     }
   }, [isOpen]);
 
@@ -122,9 +131,20 @@ function SearchOverlay({ isOpen, onClose, onAddToQueue }) {
   const handleAdd = async (uri) => {
     setAddingUri(uri);
     try {
-      const success = await onAddToQueue(uri);
-      if (success) {
+      const result = await onAddToQueue(uri);
+      if (result.success) {
         setAddedUris(prev => new Set([...prev, uri]));
+      } else if (result.error === 'vibe_mismatch') {
+        // Track was rejected due to vibe mismatch
+        setRejectedUris(prev => new Map(prev).set(uri, result.reason));
+        if (onShowToast) {
+          onShowToast(result.reason || "Doesn't match the vibe", true);
+        }
+      } else {
+        // Other error
+        if (onShowToast) {
+          onShowToast(result.error || 'Failed to add song', true);
+        }
       }
     } finally {
       setAddingUri(null);
@@ -192,6 +212,8 @@ function SearchOverlay({ isOpen, onClose, onAddToQueue }) {
             onAdd={handleAdd}
             addingUri={addingUri}
             wasAdded={addedUris.has(track.uri)}
+            wasRejected={rejectedUris.has(track.uri)}
+            rejectedReason={rejectedUris.get(track.uri)}
           />
         ))}
       </div>

@@ -59,9 +59,19 @@ export function useQueue() {
         body: JSON.stringify({ uri }),
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to add to queue: ${response.status}`);
+        // Handle vibe mismatch specially
+        if (data.error === 'vibe_mismatch') {
+          return {
+            success: false,
+            error: 'vibe_mismatch',
+            message: data.message,
+            reason: data.reason,
+          };
+        }
+        throw new Error(data.message || data.error || `Failed to add to queue: ${response.status}`);
       }
 
       // Refresh queue after adding
