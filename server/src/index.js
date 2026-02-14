@@ -106,8 +106,8 @@ const VIBE_PRESETS = {
 
 // Current vibe settings (in-memory, will reset on restart)
 let currentVibe = {
-  preset: 'off',
-  settings: { ...VIBE_PRESETS.off },
+  preset: 'match',
+  settings: { ...VIBE_PRESETS.match },
 };
 
 // Fetch audio features for a track
