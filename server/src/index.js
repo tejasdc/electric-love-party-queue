@@ -837,6 +837,27 @@ app.get('/api/artist/:artistId', async (req, res) => {
   }
 });
 
+// GET /api/artist/:artistId/related - Test related artists API
+app.get('/api/artist/:artistId/related', async (req, res) => {
+  const { artistId } = req.params;
+  try {
+    const response = await spotifyFetch(`/artists/${artistId}/related-artists`);
+    const status = response.status;
+    const data = await response.json().catch(() => null);
+    res.json({
+      status,
+      artistId,
+      relatedArtists: (data?.artists || []).slice(0, 5).map(a => ({
+        id: a.id,
+        name: a.name,
+        genres: a.genres
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, artistId });
+  }
+});
+
 // GET /api/vibe/check/:trackId - Check if a track matches the current vibe (for preview)
 app.get('/api/vibe/check/:trackId', async (req, res) => {
   const { trackId } = req.params;
