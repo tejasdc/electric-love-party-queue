@@ -190,7 +190,8 @@ body {
 }
 
 .logo {
-  font-family: 'Nabla', system-ui;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
   font-size: 1.4rem;
   letter-spacing: 0.05em;
   display: inline-block;
@@ -206,6 +207,7 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: transparent;
   animation: gradient-shift 5s ease infinite;
   text-shadow: none;
   filter: drop-shadow(0 0 20px rgba(255, 45, 146, 0.4));
