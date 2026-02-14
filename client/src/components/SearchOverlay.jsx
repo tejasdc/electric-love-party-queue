@@ -34,7 +34,7 @@ function SearchItem({ track, onAdd, addingUri, wasAdded, wasRejected, rejectedRe
         <div className="search-track">{trackName}</div>
         <div className="search-meta">
           {wasRejected ? (
-            <span className="rejected-reason">{rejectedReason || "Doesn't match the vibe"}</span>
+            <span className="rejected-reason">😬 {rejectedReason || "Doesn't match the vibe"}</span>
           ) : (
             <>{artistName} {albumName && `\u00B7 ${albumName}`}</>
           )}
@@ -138,7 +138,7 @@ function SearchOverlay({ isOpen, onClose, onAddToQueue, onShowToast }) {
         // Track was rejected due to vibe mismatch
         setRejectedUris(prev => new Map(prev).set(uri, result.reason));
         if (onShowToast) {
-          onShowToast(result.reason || "Doesn't match the vibe", true);
+          onShowToast(`😅 ${result.reason || "Doesn't match the vibe"}`, true);
         }
       } else {
         // Other error
