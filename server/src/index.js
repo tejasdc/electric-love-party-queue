@@ -115,12 +115,19 @@ async function getAudioFeatures(trackId) {
   try {
     const response = await spotifyFetch(`/audio-features/${trackId}`);
     if (!response.ok) {
-      console.error('Failed to fetch audio features:', response.status);
+      const errorBody = await response.text().catch(() => 'unknown');
+      console.error(`Failed to fetch audio features for ${trackId}: ${response.status} - ${errorBody}`);
       return null;
     }
-    return await response.json();
+    const data = await response.json();
+    // Spotify returns null for tracks without audio features (e.g., podcasts)
+    if (!data || data.error) {
+      console.error(`No audio features available for ${trackId}:`, data?.error || 'null response');
+      return null;
+    }
+    return data;
   } catch (err) {
-    console.error('Error fetching audio features:', err);
+    console.error('Error fetching audio features:', err.message);
     return null;
   }
 }
@@ -795,6 +802,19 @@ app.post('/api/vibe', (req, res) => {
     currentPreset: currentVibe.preset,
     settings: currentVibe.settings,
   });
+});
+
+// GET /api/audio-features/:trackId - Debug endpoint to test audio features API
+app.get('/api/audio-features/:trackId', async (req, res) => {
+  const { trackId } = req.params;
+  try {
+    const response = await spotifyFetch(`/audio-features/${trackId}`);
+    const status = response.status;
+    const data = await response.json().catch(() => null);
+    res.json({ status, data, trackId });
+  } catch (err) {
+    res.status(500).json({ error: err.message, trackId });
+  }
 });
 
 // GET /api/vibe/check/:trackId - Check if a track matches the current vibe (for preview)
