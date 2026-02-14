@@ -30,6 +30,10 @@ const rateLimitStore = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX_REQUESTS = 10;
 
+// OAuth state storage (avoids session issues on Render free tier)
+// Map<state, { codeVerifier: string, createdAt: number }>
+const oauthStateStore = new Map();
+
 // Middleware
 app.use(express.json());
 // CORS configuration - accepts comma-separated origins
@@ -175,9 +179,16 @@ app.get('/api/auth/login', (req, res) => {
   const codeChallenge = generateCodeChallenge(codeVerifier);
   const state = generateState();
 
-  // Store in session for callback verification
-  req.session.codeVerifier = codeVerifier;
-  req.session.oauthState = state;
+  // Store in memory (more reliable than session on Render free tier)
+  oauthStateStore.set(state, { codeVerifier, createdAt: Date.now() });
+
+  // Clean up old states (older than 10 minutes)
+  const TEN_MINUTES = 10 * 60 * 1000;
+  for (const [key, value] of oauthStateStore.entries()) {
+    if (Date.now() - value.createdAt > TEN_MINUTES) {
+      oauthStateStore.delete(key);
+    }
+  }
 
   const scopes = [
     'user-read-playback-state',
@@ -200,25 +211,28 @@ app.get('/api/auth/login', (req, res) => {
 // GET /api/auth/callback - Handle OAuth callback
 app.get('/api/auth/callback', async (req, res) => {
   const { code, state, error } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
   if (error) {
     console.error('OAuth error:', error);
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?error=${encodeURIComponent(error)}`);
+    return res.redirect(`${frontendUrl}?error=${encodeURIComponent(error)}`);
   }
 
   if (!code) {
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?error=missing_code`);
+    return res.redirect(`${frontendUrl}?error=missing_code`);
   }
 
-  // Verify state
-  if (state !== req.session.oauthState) {
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?error=state_mismatch`);
+  // Verify state and get code verifier from memory store
+  const storedAuth = oauthStateStore.get(state);
+  if (!storedAuth) {
+    console.error('State mismatch or expired. State:', state, 'Store size:', oauthStateStore.size);
+    return res.redirect(`${frontendUrl}?error=state_mismatch`);
   }
 
-  const codeVerifier = req.session.codeVerifier;
-  if (!codeVerifier) {
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?error=missing_verifier`);
-  }
+  const { codeVerifier } = storedAuth;
+
+  // Clean up used state
+  oauthStateStore.delete(state);
 
   try {
     // Exchange code for tokens
@@ -239,7 +253,7 @@ app.get('/api/auth/callback', async (req, res) => {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json();
       console.error('Token exchange failed:', errorData);
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?error=token_exchange_failed`);
+      return res.redirect(`${frontendUrl}?error=token_exchange_failed`);
     }
 
     const tokenData = await tokenResponse.json();
@@ -251,15 +265,11 @@ app.get('/api/auth/callback', async (req, res) => {
       expiresAt: Date.now() + tokenData.expires_in * 1000,
     };
 
-    // Clear session OAuth data
-    delete req.session.codeVerifier;
-    delete req.session.oauthState;
-
     console.log('Successfully authenticated with Spotify');
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?authenticated=true`);
+    res.redirect(`${frontendUrl}?authenticated=true`);
   } catch (err) {
     console.error('OAuth callback error:', err);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?error=server_error`);
+    res.redirect(`${frontendUrl}?error=server_error`);
   }
 });
 
