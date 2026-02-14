@@ -105,31 +105,50 @@ const VIBE_PRESETS = {
 };
 
 // Current vibe settings (in-memory, will reset on restart)
-// Note: Vibe filtering disabled by default because Spotify deprecated
-// the Audio Features, Related Artists, and Recommendations APIs in Nov 2024
+// Using ReccoBeats API for audio features (Spotify deprecated theirs in Nov 2024)
 let currentVibe = {
-  preset: 'off',
-  settings: { ...VIBE_PRESETS.off },
+  preset: 'match',
+  settings: { ...VIBE_PRESETS.match },
 };
 
-// Fetch audio features for a track
+// Fetch audio features for a track using ReccoBeats API
+// (Spotify deprecated their audio-features endpoint in Nov 2024)
 async function getAudioFeatures(trackId) {
   try {
-    const response = await spotifyFetch(`/audio-features/${trackId}`);
+    // Use ReccoBeats API - free, no auth required, accepts Spotify track IDs
+    const response = await fetch(`https://api.reccobeats.com/v1/audio-features?ids=${trackId}`);
+
     if (!response.ok) {
-      const errorBody = await response.text().catch(() => 'unknown');
-      console.error(`Failed to fetch audio features for ${trackId}: ${response.status} - ${errorBody}`);
+      console.error(`ReccoBeats API error for ${trackId}: ${response.status}`);
       return null;
     }
+
     const data = await response.json();
-    // Spotify returns null for tracks without audio features (e.g., podcasts)
-    if (!data || data.error) {
-      console.error(`No audio features available for ${trackId}:`, data?.error || 'null response');
+
+    // ReccoBeats returns { content: [{ ...features }] }
+    if (!data.content || data.content.length === 0) {
+      console.log(`Track ${trackId} not found in ReccoBeats database`);
       return null;
     }
-    return data;
+
+    const features = data.content[0];
+
+    // Return in Spotify-compatible format
+    return {
+      energy: features.energy,
+      valence: features.valence,
+      danceability: features.danceability,
+      tempo: features.tempo,
+      acousticness: features.acousticness,
+      instrumentalness: features.instrumentalness,
+      liveness: features.liveness,
+      speechiness: features.speechiness,
+      loudness: features.loudness,
+      key: features.key,
+      mode: features.mode,
+    };
   } catch (err) {
-    console.error('Error fetching audio features:', err.message);
+    console.error('Error fetching audio features from ReccoBeats:', err.message);
     return null;
   }
 }
