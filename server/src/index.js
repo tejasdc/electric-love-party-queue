@@ -51,10 +51,10 @@ const VIBE_PRESETS = {
     enabled: true,
     dynamic: true, // Special flag indicating this uses now-playing as reference
     tolerance: {
-      energy: 0.25,
-      valence: 0.25,
-      danceability: 0.25,
-      tempo: 20, // BPM tolerance
+      energy: 0.4,       // Was 0.25 - more lenient
+      valence: 0.45,     // Was 0.25 - mood can vary more
+      danceability: 0.4, // Was 0.25 - more lenient
+      tempo: 35,         // Was 20 BPM - allow wider tempo range
     },
   },
   chill: {
